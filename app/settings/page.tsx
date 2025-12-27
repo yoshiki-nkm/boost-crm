@@ -2,6 +2,8 @@
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { MembersTab } from "@/components/settings/members-tab"
+import { StatusTab } from "@/components/settings/status-tab"
+import { SlackTab } from "@/components/settings/slack-tab"
 
 export default function SettingsPage() {
   return (
@@ -17,7 +19,6 @@ export default function SettingsPage() {
         <TabsList>
           <TabsTrigger value="members">メンバー管理</TabsTrigger>
           <TabsTrigger value="status">ステータス管理</TabsTrigger>
-          <TabsTrigger value="priority">優先度設定</TabsTrigger>
           <TabsTrigger value="slack">Slack連携</TabsTrigger>
         </TabsList>
 
@@ -26,21 +27,11 @@ export default function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="status" className="space-y-4">
-          <div className="rounded-lg border p-8 text-center text-muted-foreground">
-            <p>ステータス管理機能は開発中です</p>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="priority" className="space-y-4">
-          <div className="rounded-lg border p-8 text-center text-muted-foreground">
-            <p>優先度設定機能は開発中です</p>
-          </div>
+          <StatusTab />
         </TabsContent>
 
         <TabsContent value="slack" className="space-y-4">
-          <div className="rounded-lg border p-8 text-center text-muted-foreground">
-            <p>Slack連携機能は開発中です</p>
-          </div>
+          <SlackTab />
         </TabsContent>
       </Tabs>
     </div>

@@ -54,10 +54,10 @@ export default function DashboardPage() {
       const startDate = startOfMonth(fiveMonthsAgo)
       const endDate = endOfMonth(today)
 
-      // 顧客データを取得（createdAtが6ヶ月前以降のもの + updatedAtも取得）
+      // 顧客データを取得（createdAtが6ヶ月前以降のもの + updatedAtも取得 + meetings取得）
       const { data: customers, error } = await supabase
         .from("customers")
-        .select("id, createdAt, firstMeetingDate, status, updatedAt")
+        .select("id, createdAt, firstMeetingDate, status, updatedAt, meetings(meetingDate)")
         .gte("createdAt", startDate.toISOString())
         .lte("createdAt", endDate.toISOString())
 
@@ -98,14 +98,31 @@ export default function DashboardPage() {
     })
 
     customers.forEach((customer) => {
-      if (!customer.firstMeetingDate) return
+      // meetings配列がない、または空の場合はスキップ
+      if (!customer.meetings || customer.meetings.length === 0) return
 
-      const meetingDate = new Date(customer.firstMeetingDate)
+      // 有効な日付のみを抽出
+      const validDates: Date[] = []
+      customer.meetings.forEach((meeting: any) => {
+        if (meeting.meetingDate) {
+          try {
+            validDates.push(new Date(meeting.meetingDate))
+          } catch {
+            // 無効な日付は無視
+          }
+        }
+      })
+
+      // 有効な日付がない場合はスキップ
+      if (validDates.length === 0) return
+
+      // 最も古い日付（最小値）を取得 = 初回面談日
+      const firstMeetingDate = new Date(Math.min(...validDates.map((d) => d.getTime())))
 
       // 集計期間内かチェック
-      if (meetingDate >= startDate && meetingDate <= endDate) {
+      if (firstMeetingDate >= startDate && firstMeetingDate <= endDate) {
         // 月を取得
-        const monthLabel = format(meetingDate, "M月", { locale: ja })
+        const monthLabel = format(firstMeetingDate, "M月", { locale: ja })
         if (monthlyCounts[monthLabel] !== undefined) {
           monthlyCounts[monthLabel]++
         }

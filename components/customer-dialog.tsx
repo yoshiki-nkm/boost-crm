@@ -616,7 +616,7 @@ export function CustomerDialog({
         <Tabs defaultValue="basic" className="w-full">
           <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="basic">基本情報</TabsTrigger>
-            <TabsTrigger value="counterparts">カウンターパート</TabsTrigger>
+            <TabsTrigger value="counterparts">PIC</TabsTrigger>
             <TabsTrigger value="next-actions">ネクストアクション</TabsTrigger>
             <TabsTrigger value="meetings">商談記録</TabsTrigger>
             <TabsTrigger value="history">アクション履歴</TabsTrigger>
@@ -727,10 +727,10 @@ export function CustomerDialog({
               </div>
             ) : (
               <>
-                {/* 既存のカウンターパート一覧 */}
+                {/* 既存のPIC一覧 */}
                 <div>
                   <h3 className="text-sm font-semibold mb-2">
-                    カウンターパート一覧
+                    PIC一覧
                   </h3>
                   {loadingCounterparts ? (
                     <div className="text-sm text-muted-foreground">
@@ -738,7 +738,7 @@ export function CustomerDialog({
                     </div>
                   ) : counterparts.length === 0 ? (
                     <div className="text-sm text-muted-foreground">
-                      カウンターパートが登録されていません
+                      PICが登録されていません
                     </div>
                   ) : (
                     <div className="rounded-lg border">
@@ -780,10 +780,10 @@ export function CustomerDialog({
                   )}
                 </div>
 
-                {/* 新規カウンターパート追加フォーム */}
+                {/* 新規PIC追加フォーム */}
                 <div className="space-y-4 border-t pt-4">
                   <h3 className="text-sm font-semibold">
-                    カウンターパートを追加
+                    PICを追加
                   </h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-2">

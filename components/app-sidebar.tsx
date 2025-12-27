@@ -23,14 +23,14 @@ import {
 
 const menuItems = [
   {
-    title: "顧客一覧",
-    url: "/",
-    icon: Users,
-  },
-  {
     title: "ダッシュボード",
     url: "/dashboard",
     icon: LayoutDashboard,
+  },
+  {
+    title: "顧客一覧",
+    url: "/",
+    icon: Users,
   },
   {
     title: "設定",

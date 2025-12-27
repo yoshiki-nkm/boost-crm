@@ -31,7 +31,7 @@ import {
 import { Plus, Search, HelpCircle } from "lucide-react"
 import { format, differenceInDays } from "date-fns"
 import { ja } from "date-fns/locale"
-import { STATUS_LABEL_MAP } from "@/lib/constants"
+import { STATUS_LABEL_MAP, CUSTOMER_STATUSES } from "@/lib/constants"
 
 // 結合データの型定義
 type CustomerWithRelations = Customer & {
@@ -230,6 +230,7 @@ function getDaysSinceUpdateStyle(days: number): string {
 
 export default function Home() {
   const [customers, setCustomers] = useState<CustomerWithRelations[]>([])
+  const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -274,26 +275,40 @@ export default function Home() {
   const fetchCustomers = useCallback(async () => {
     try {
       setLoading(true)
-      const { data, error } = await supabase
-        .from("customers")
-        .select(`
-          *,
-          assignee:users(*),
-          counterparts(*),
-          next_actions(*),
-          meetings(meetingDate)
-        `)
-        .order("createdAt", { ascending: false })
 
-      if (error) {
-        console.error("Supabase error:", error)
-        throw error
+      // 顧客データとユーザーデータを並列取得
+      const [customersResult, usersResult] = await Promise.all([
+        supabase
+          .from("customers")
+          .select(`
+            *,
+            assignee:users(*),
+            counterparts(*),
+            next_actions(*),
+            meetings(meetingDate)
+          `)
+          .order("createdAt", { ascending: false }),
+        supabase
+          .from("users")
+          .select("*")
+          .order("lastName", { ascending: true })
+      ])
+
+      if (customersResult.error) {
+        console.error("Supabase error:", customersResult.error)
+        throw customersResult.error
       }
 
-      setCustomers((data || []) as CustomerWithRelations[])
+      if (usersResult.error) {
+        console.error("Supabase error:", usersResult.error)
+        throw usersResult.error
+      }
+
+      setCustomers((customersResult.data || []) as CustomerWithRelations[])
+      setUsers((usersResult.data || []) as User[])
       setError(null)
     } catch (err) {
-      console.error("Error fetching customers:", err)
+      console.error("Error fetching data:", err)
       setError(err instanceof Error ? err.message : "データの取得に失敗しました")
     } finally {
       setLoading(false)
@@ -311,7 +326,7 @@ export default function Home() {
 
   // フィルタリング処理
   const filteredCustomers = customers.filter((customer) => {
-    // 検索クエリによるフィルタリング（企業名またはCP名で部分一致）
+    // 検索クエリによるフィルタリング（企業名またはPIC名で部分一致）
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
       const matchesCompanyName = customer.companyName.toLowerCase().includes(query)
@@ -333,12 +348,9 @@ export default function Home() {
       return false
     }
 
-    // BC担当者によるフィルタリング
-    if (selectedAssignee !== "all") {
-      const assigneeName = getAssigneeName(customer.assignee)
-      if (assigneeName !== selectedAssignee) {
-        return false
-      }
+    // BC担当者によるフィルタリング（IDで比較）
+    if (selectedAssignee !== "all" && customer.assigneeId !== selectedAssignee) {
+      return false
     }
 
     return true
@@ -393,10 +405,11 @@ export default function Home() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">全てのステータス</SelectItem>
-              <SelectItem value="提案中">提案中</SelectItem>
-              <SelectItem value="検討中">検討中</SelectItem>
-              <SelectItem value="見込みあり">見込みあり</SelectItem>
-              <SelectItem value="保留">保留</SelectItem>
+              {CUSTOMER_STATUSES.map((status) => (
+                <SelectItem key={status.value} value={status.value}>
+                  {status.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
 
@@ -406,9 +419,11 @@ export default function Home() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">全ての担当者</SelectItem>
-              <SelectItem value="山田 太郎">山田 太郎</SelectItem>
-              <SelectItem value="佐藤 花子">佐藤 花子</SelectItem>
-              <SelectItem value="鈴木 一郎">鈴木 一郎</SelectItem>
+              {users.map((user) => (
+                <SelectItem key={user.id} value={user.id}>
+                  {user.lastName} {user.firstName}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -447,18 +462,18 @@ export default function Home() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>企業名</TableHead>
-                <TableHead className="text-center">CPランク</TableHead>
-                <TableHead className="text-center">企業ランク</TableHead>
-                <TableHead>カウンターパート</TableHead>
-                <TableHead>BC担当者</TableHead>
-                <TableHead>ステータス</TableHead>
-                <TableHead>リードソース</TableHead>
-                <TableHead>初回面談</TableHead>
-                <TableHead>次回面談</TableHead>
-                <TableHead>アクション</TableHead>
-                <TableHead>期限まで</TableHead>
-                <TableHead className="text-right">
+                <TableHead className="text-sm font-bold text-foreground whitespace-nowrap">企業名</TableHead>
+                <TableHead className="text-center text-sm font-bold text-foreground whitespace-nowrap">企業ランク</TableHead>
+                <TableHead className="text-center text-sm font-bold text-foreground whitespace-nowrap">PICランク</TableHead>
+                <TableHead className="text-sm font-bold text-foreground whitespace-nowrap">PIC</TableHead>
+                <TableHead className="text-sm font-bold text-foreground whitespace-nowrap">BC担当者</TableHead>
+                <TableHead className="text-sm font-bold text-foreground whitespace-nowrap">ステータス</TableHead>
+                <TableHead className="text-sm font-bold text-foreground whitespace-nowrap">リードソース</TableHead>
+                <TableHead className="text-sm font-bold text-foreground whitespace-nowrap">初回面談</TableHead>
+                <TableHead className="text-sm font-bold text-foreground whitespace-nowrap">次回面談</TableHead>
+                <TableHead className="text-sm font-bold text-foreground whitespace-nowrap">アクション</TableHead>
+                <TableHead className="text-sm font-bold text-foreground whitespace-nowrap">期限まで</TableHead>
+                <TableHead className="text-right text-sm font-bold text-foreground whitespace-nowrap">
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <div className="inline-flex items-center gap-1 cursor-help">
@@ -494,10 +509,22 @@ export default function Home() {
                     className="cursor-pointer hover:bg-muted"
                     onClick={() => handleEdit(customer)}
                   >
-                    <TableCell className="font-medium align-top">
+                    <TableCell className="font-medium align-top whitespace-nowrap text-xs py-2">
                       {customer.companyName}
                     </TableCell>
-                    <TableCell className="text-center align-top">
+                    <TableCell className="text-center align-top whitespace-nowrap text-xs py-2">
+                      {customer.companyRank ? (
+                        <Badge
+                          variant="outline"
+                          className="font-bold"
+                        >
+                          {customer.companyRank}
+                        </Badge>
+                      ) : (
+                        "-"
+                      )}
+                    </TableCell>
+                    <TableCell className="text-center align-top text-xs py-2 whitespace-nowrap">
                       {counterparts.length > 0 ? (
                         <div className="flex flex-col gap-1">
                           {counterparts.map((cp, idx) => (
@@ -519,19 +546,7 @@ export default function Home() {
                         "-"
                       )}
                     </TableCell>
-                    <TableCell className="text-center align-top">
-                      {customer.companyRank ? (
-                        <Badge
-                          variant="outline"
-                          className="font-bold"
-                        >
-                          {customer.companyRank}
-                        </Badge>
-                      ) : (
-                        "-"
-                      )}
-                    </TableCell>
-                    <TableCell className="align-top">
+                    <TableCell className="align-top text-xs py-2 whitespace-nowrap">
                       {counterparts.length > 0 ? (
                         <div className="flex flex-col gap-1">
                           {counterparts.map((cp, idx) => (
@@ -544,10 +559,10 @@ export default function Home() {
                         "-"
                       )}
                     </TableCell>
-                    <TableCell className="align-top">
+                    <TableCell className="align-top whitespace-nowrap text-xs py-2">
                       {getAssigneeName(customer.assignee)}
                     </TableCell>
-                    <TableCell className="align-top">
+                    <TableCell className="align-top whitespace-nowrap text-xs py-2">
                       {customer.status ? (
                         <Badge variant="outline">
                           {STATUS_LABEL_MAP[customer.status as keyof typeof STATUS_LABEL_MAP] || customer.status}
@@ -556,14 +571,14 @@ export default function Home() {
                         "-"
                       )}
                     </TableCell>
-                    <TableCell className="align-top">{customer.leadSource || "-"}</TableCell>
-                    <TableCell className="align-top">
+                    <TableCell className="align-top whitespace-nowrap text-xs py-2">{customer.leadSource || "-"}</TableCell>
+                    <TableCell className="align-top whitespace-nowrap text-xs py-2">
                       {getFirstMeetingDate(customer.meetings || [])}
                     </TableCell>
-                    <TableCell className="align-top">
+                    <TableCell className="align-top whitespace-nowrap text-xs py-2">
                       {formatDate(customer.nextMeetingDate)}
                     </TableCell>
-                    <TableCell className="max-w-[200px] align-top">
+                    <TableCell className="max-w-[200px] align-top text-xs py-2 whitespace-nowrap">
                       {activeActions.length > 0 ? (
                         <div className="flex flex-col gap-1">
                           {activeActions.map((action, idx) => (
@@ -576,7 +591,7 @@ export default function Home() {
                         "-"
                       )}
                     </TableCell>
-                    <TableCell className="align-top">
+                    <TableCell className="align-top text-xs py-2 whitespace-nowrap">
                       {activeActions.length > 0 ? (
                         <div className="flex flex-col gap-1">
                           {activeActions.map((action, idx) => {
@@ -594,7 +609,7 @@ export default function Home() {
                         "-"
                       )}
                     </TableCell>
-                    <TableCell className="text-right align-top">
+                    <TableCell className="text-right align-top whitespace-nowrap text-xs py-2">
                       <span className={updateStyle}>
                         {lastActivity.displayText}
                       </span>
